@@ -67,9 +67,9 @@ int readMagCMM(pList *p, int devAddr, int32_t *XYZ)
 
     i2c_setAddress(p->i2c_fd, devAddr);
     // Check if DRDY went high and wait unit high before reading results
-    while((rv = (i2c_read(p->i2c_fd, RM3100I2C_STATUS)) & RM3100I2C_READMASK) != RM3100I2C_READMASK)
-    {
-    }
+    //while((rv = (i2c_read(p->i2c_fd, RM3100I2C_STATUS)) & RM3100I2C_READMASK) != RM3100I2C_READMASK)
+    //{
+    //}
     // Read the XYZ registers
     if((bytes_read = i2c_readbuf(p->i2c_fd, RM3100I2C_XYZ, (unsigned char*) &mSamples, sizeof(mSamples)/sizeof(char))) != sizeof(mSamples)/sizeof(char))
     {
@@ -149,6 +149,12 @@ int main(int argc, char** argv)
     int rv = 0;
     time_t sec_count;
     time_t new_count;
+    useconds_t loop_delay = 100; // how often to check for next sample
+    useconds_t sample_interval = 10000; // desired sample interval uSec
+    struct timeval curr_time;
+    struct timeval prev_time; 
+    struct timeval diff_time;
+    long tdiff_usec; 
     FILE *outfp = stdout;
 #if (USE_PIPES)
     int  fdPipeIn;
@@ -274,6 +280,9 @@ int main(int argc, char** argv)
             xyz[1] = (((double)rXYZ[1] / p.NOSRegValue) / p.y_gain) * 1000;   // make microTeslas -> nanoTeslas
             xyz[2] = (((double)rXYZ[2] / p.NOSRegValue) / p.z_gain) * 1000;   // make microTeslas -> nanoTeslas
         }
+
+        // results are read, so set the prev_time, time of previous measurement
+        gettimeofday(&prev_time,NULL);
 
         // Output the results.
         if(!(p.jsonFlag))
@@ -437,12 +446,19 @@ int main(int argc, char** argv)
         // Per Bill Englkey
         do
         {
-            time(&new_count);
-            usleep(100000);
-        } while (new_count==sec_count);
-        sec_count = new_count;
+            //time(&new_count);
+            usleep(loop_delay);
+            gettimeofday(&curr_time,NULL);
 
-        //printf("Seconds ctr=%ld\n",sec_count);
+            // compute difference
+            timersub(&curr_time, &prev_time, &diff_time);
+
+            tdiff_usec = diff_time.tv_sec * 1000000 + diff_time.tv_usec ;
+
+        } while (tdiff_usec <= sample_interval);
+        //sec_count = new_count;
+
+        //printf("usec ctr=%ld\n",tdiff_usec);
 
         // wait p.outDelay (1000 ms default) for next poll.
         // usleep(p.outDelay);
