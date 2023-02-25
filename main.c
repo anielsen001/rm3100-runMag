@@ -284,7 +284,7 @@ int main(int argc, char** argv)
                 gettimeofday(&time, NULL);
                 //fprintf(outfp, "%ld ", currentTimeMillis());
                 fprintf(outfp, "%ld ", time.tv_sec);
-                fprintf(outfp, "%ld ", time.tv_usec*1000);
+                fprintf(outfp, ", %ld ", time.tv_usec*1000);
             }
             else
             {
